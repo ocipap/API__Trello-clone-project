@@ -13,6 +13,10 @@ Trello 클론 프로젝트의 API 서버이다. 개발은 `Node.js` 의 `express
 
 ### 기능 구현
 
+
+- [ ] Model 정의
+- [ ] Controller 정의
+- [ ] Route 정의
 - [ ] user - 로그인 / 화원가입 
 - [ ] user - 회원 비밀 번호 변경 
 - [ ] user - 비밀번호 찾기 
