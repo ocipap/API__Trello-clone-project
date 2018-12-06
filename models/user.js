@@ -1,27 +1,36 @@
 module.exports = (sequelize, DataTypes) => {
     return sequelize.define('user', {
         uid: {
+            field: "uid",
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
             allowNull: false
         },
         username: {
+            field: "username",
             type: DataTypes.STRING(10),
             allowNull: false,
         },
         password: {
-            type: Datatypes.STRING(32),
+            field: "password",
+            type: DataTypes.STRING(32),
             allowNull: false
         },
         email: {
+            field: "email",
             type: DataTypes.STRING(20),
             allowNull: false,
             defaultValue: "rgb(255,255,255)"
         },
         photo: {
+            field: "photo",
             type: DataTypes.STRING(20),
             allowNull: false
         }
+    }, {
+        underscored: true,
+        tableName: 'user',
+        freezeTableName: true
     })
 }

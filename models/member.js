@@ -1,12 +1,33 @@
 module.exports = (sequelize, DataTypes) => {
-    return sequelize.define('member', {
+    const member = sequelize.define('member', {
+        mid: {
+            field: "mid",
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true,
+            allowNull: false            
+        },
         bid: {
+            field: "bid",
             type: DataTypes.UUID,
             allowNull: false,
         },
         uid: {
+            field: "uid",
             type: DataTypes.UUID,
             allowNull: false,
         }
+    }, {
+        underscored: true,
+        tableName: 'member',
+        freezeTableName: true
     })
+
+    member.association = (db) => {
+        db.member.belongsTo(db.user, {
+            foreignKey: 'uid'
+        })
+    }
+
+    return member;
 }

@@ -3,12 +3,12 @@ const path = require('path')
 const bodyParser = require('body-parser')
 const logger = require('morgan')
 const cors = require('cors')
-const routes = require('./routes')
+//const routes = require('./routes')
 
 const app = express()
 
 app.use(cors())
-app.use(logget('dev'))
+app.use(logger('dev'))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({
     extends: false

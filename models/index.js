@@ -2,15 +2,16 @@ const fs = require('fs')
 const path = require('path')
 const basename = path.basename(__filename)
 const Sequelize = require('sequelize')
+const config = require('../config/db.config')
 const db = {};
 
 const sequelize = new Sequelize(
-    'trello',
-    'root',
-    'ocipap0531', {
-        'host': 'localhost',
-        'port': 3306,
-        'dialect': 'mysql'
+    config.database,
+    config.username,
+    config.password, {
+        'host': config.host,
+        'port': config.port,
+        'dialect': config.dialect
     }
 )
 
@@ -22,46 +23,10 @@ fs.readdirSync(__dirname).filter((file) => {
     db[model.name] = model
 })
 
-/* Setting associations */
-db.board.belongsTo(db.user, {
-    foreignKey: 'user_id',
-    targetKey: 'uid'
-});
+Object.values(db).filter(model => model.hasOwnProperty('association'))
+    .forEach(model => model['association'](db))
 
-db.board.hasMany(db.member, {
-    foreignKey: 'bid'
-})
-
-db.member.belongsTo(db.user, {
-    foreignKey: 'uid'
-})
-
-db.board.hasMany(db.list, {
-    foreignKey: 'bid'
-})
-
-db.list.hasMany(db.card, {
-    foreignKey: 'lid'
-})
-
-db.board.hasMany(db.activity, {
-    foreignKey: 'bid'
-})
-
-db.activity.belongsTo(db.user, {
-    foreignKey: 'uid'
-})
-
-db.card.hasMany(db.activity, {
-    foreignKey: 'cid'
-})
-
-db.card.hasMany(db.comment, {
-    foreignKey: 'cid'
-})
-
-db.comment.belongsTo(db.user, {
-    foreignKey: 'uid'
-})
-
-module.exports = { db }
+module.exports = {
+    sequelize,
+    db
+}

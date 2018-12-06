@@ -1,27 +1,48 @@
 module.exports = (sequelize, DataTypes) => {
-    return sequelize.define('card', {
+    const card = sequelize.define('card', {
         cid: {
+            field: "cid",
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
             allowNull: false
         },
         lid: {
+            field: "lid",
             type: DataTypes.UUID,
             allowNull: false,
         },
         title: {
-            type: Datatypes.STRING(30),
+            field: "title",
+            type: DataTypes.STRING(30),
             allowNull: false
         },
         description: {
+            field: "description",
             type: DataTypes.STRING(500),
             allowNull: false
         },
         position: {
-            type: Datatypes.INT,
+            field: "position",
+            type: DataTypes.DOUBLE,
             allowNull: false,
             defaultValue: 65535
         }
+    }, {
+        underscored: true,
+        tableName: 'card',
+        freezeTableName: true
     })
+
+    card.association = (db) => {
+        db.card.hasMany(db.activity, {
+            foreignKey: 'cid'
+        })
+
+        db.card.hasMany(db.comment, {
+            foreignKey: 'cid'
+        })
+    }
+
+    return card
 }
