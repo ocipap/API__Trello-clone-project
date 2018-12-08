@@ -27,6 +27,16 @@ module.exports = (sequelize, DataTypes) => {
             field: "photo",
             type: DataTypes.STRING(20),
             allowNull: false
+        },
+        reset_code: {
+            field: "reset_code",
+            type: DataTypes.UUID,
+            allowNull: true
+        },
+        reset_code_expiredate: {
+            field: "reset_code_expiredate",
+            type: DataTypes.DATE,
+            allowNull: true
         }
     }, {
         underscored: true,

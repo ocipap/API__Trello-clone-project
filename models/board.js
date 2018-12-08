@@ -17,16 +17,18 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING(30),
             allowNull: false
         },
-        bgcolor: {
-            field: "bgcolor",
-            type: DataTypes.STRING(20),
-            allowNull: false,
-            defaultValue: "rgb(255,255,255)"
+        bg_type: {
+            field: "bg_type",
+            type: DataTypes.ENUM,
+            values: ['image', 'color'],
+            defaultValue: 'color',
+            allowNull: false
         },
-        bgimage: {
-            field: "bgimage",
-            type: DataTypes.STRING(20),
-            allowNull: true
+        background: {
+            field: "background",
+            type: DataTypes.STRING(100),
+            defaultValue: 'rgb(0, 121, 191)',
+            allowNull: false
         }
     }, {
         underscored: true,
