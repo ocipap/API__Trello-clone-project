@@ -3,7 +3,7 @@ const path = require('path')
 const bodyParser = require('body-parser')
 const logger = require('morgan')
 const cors = require('cors')
-//const routes = require('./routes')
+const routes = require('./routes')
 
 const app = express()
 
@@ -19,7 +19,7 @@ app.use(function (req, res, next) {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE')
     res.header('Access-Control-Allow-Headers', 'content-type, x-access-token')
     next()
-  })
+})
 app.use(express.static('public'))
 
 app.use((req, res, text) => {
@@ -27,7 +27,7 @@ app.use((req, res, text) => {
     next(Error('not found'))
 })
 
-app.use((err,req, res,next) => {
+app.use((err, req, res, next) => {
     console.log(err)
     res.status(res.statusCode || 500)
     res.json({
@@ -36,4 +36,3 @@ app.use((err,req, res,next) => {
 })
 
 module.exports = app
-
