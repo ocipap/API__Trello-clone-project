@@ -1,5 +1,5 @@
 # ignore node_modules
 /node_modules
 
-#ignore db setting
-/config/*.js
+#ignore config file
+/config
