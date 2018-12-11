@@ -22,7 +22,9 @@ app.use(function (req, res, next) {
 })
 app.use(express.static('public'))
 
-app.use((req, res, text) => {
+app.use(routes)
+
+app.use((req, res, next) => {
     res.status = 404
     next(Error('not found'))
 })
