@@ -8,19 +8,19 @@ router.post('/join', controller.join)
 /* 로그인 */
 router.post('/login', controller.login)
 
-/* 회원정보 */
+/* 회원 정보 가져오기*/
 router.get('/info', auth, controller.getInfo)
 
-// /* 회원정보 수정 */
-// router.put('/info', auth)
+/* 회원 정보 업데이트 */
+router.put('/info', auth, controller.updateInfo)
 
-// /* reset 코드 값 체크 */
-// router.get('/reset/:username/:resetCode')
+/* reset code 유효성 확인 */
+router.get('/reset')
 
-// /* 회원 비밀번호 수정 */
-// router.patch('/reset/:username/:resetCode')
+/* reset code 발급 */
+router.post('/reset', controller.issueResetCode)
 
-// /* 회원 아메일로 검색 */
-// router.patch('/email/:email')
+/* 비밀번호 변경 */
+router.put('/reset', controller.updatePassword)
 
 module.exports = router
