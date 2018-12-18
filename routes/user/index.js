@@ -14,8 +14,8 @@ router.get('/info', auth, controller.getInfo)
 /* 회원 정보 업데이트 */
 router.put('/info', auth, controller.updateInfo)
 
-/* reset code 유효성 확인 */
-router.get('/reset')
+/* reset code 검증 */
+router.get('/reset', controller.verifyResetCode)
 
 /* reset code 발급 */
 router.post('/reset', controller.issueResetCode)

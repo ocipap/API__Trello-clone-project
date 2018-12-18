@@ -14,14 +14,13 @@ module.exports = (sequelize, DataTypes) => {
         },
         password: {
             field: "password",
-            type: DataTypes.STRING(32),
+            type: DataTypes.STRING(100),
             allowNull: false
         },
         email: {
             field: "email",
-            type: DataTypes.STRING(20),
+            type: DataTypes.STRING(50),
             allowNull: false,
-            defaultValue: "rgb(255,255,255)"
         },
         photo: {
             field: "photo",

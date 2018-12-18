@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken')
+const models = require('../../models')
 const User = require('../../models').db.user
 const salt = require('../../config/auth.config').salt
 const nodemailer = require('nodemailer')
@@ -15,6 +16,7 @@ const smtpTransport = nodemailer.createTransport({
 
 /** 회원가입 */
 exports.join = (req, res) => {
+    let t
     const {
         username,
         password,
@@ -30,6 +32,8 @@ exports.join = (req, res) => {
                 password,
                 email,
                 photo: username.substr(0, 1)
+            },{
+                transaction: t
             })
         }
     }
@@ -48,19 +52,23 @@ exports.join = (req, res) => {
             result: false
         })
     }
-
-    User.findOne({
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return User.findOne({
+            transaction: t,
             where: {
                 username
             }
         })
         .then(create)
-        .then(respond)
-        .catch(onError)
+    })
+    .then(respond)
+    .catch(onError)
 }
 
 /** 로그인 */
 exports.login = (req, res) => {
+    let t
     const {
         username,
         email,
@@ -107,27 +115,30 @@ exports.login = (req, res) => {
             result: false
         })
     }
-    if (email !== undefined) {
-        User.findOne({
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        if(email !== undefined){
+            return User.findOne({
                 where: {
                     email
                 }
             }).then(check)
-            .then(respond)
-            .catch(onError)
-    } else {
-        User.findOne({
+        }else {
+            return User.findOne({
                 where: {
                     username
                 }
             }).then(check)
-            .then(respond)
-            .catch(onError)
-    }
+        }
+    })
+    .then(respond)
+    .catch(onError)
 }
 
 /** 회원정보 가져오기 */
 exports.getInfo = (req, res) => {
+    let t
     const decoded = req.decoded;
 
     const check = (user) => {
@@ -152,19 +163,23 @@ exports.getInfo = (req, res) => {
             result: false
         })
     }
-
-    User.findOne({
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return User.findOne({
             where: {
                 uid: decoded.uid
             },
-            attributes: ['uid', 'username', 'email', 'photo']
+            attributes: ['uid', 'username', 'email', 'photo'],
+            transaction: t
         }).then(check)
-        .then(respond)
-        .catch(onError)
+    })    
+    .then(respond)
+    .catch(onError)
 }
 
 /** 회원 정보 업데이트 */
 exports.updateInfo = (req, res) => {
+    let t
     const decoded = req.decoded
     const {
         username,
@@ -178,6 +193,7 @@ exports.updateInfo = (req, res) => {
             return User.update({
                 email
             }, {
+                transaction: t,
                 where: {
                     uid: user.uid
                 }
@@ -199,18 +215,57 @@ exports.updateInfo = (req, res) => {
             message: error.message
         })
     }
-
-    User.findOne({
+    model.sequelize.transaction(transaction => {
+        t = transaction
+        return User.findOne({
+            transaction: t,
             where: {
                 uid: decoded.uid
             }
         }).then(check)
-        .then(respond)
-        .catch(onError)
+    })
+    .then(respond)
+    .catch(onError)
+}
+
+/** reset code 검증 */
+exports.verifyResetCode = (req, res) => {
+    let t
+    const {
+        uid,
+        resetCode
+    } = req.query
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return User.findOne({
+            transaction: t,
+            where : {
+                uid,
+                resetCode
+            }
+        }).then((user) => {
+            if(user){
+                return;
+            }else {
+                throw new Error("유효하지 않은 코드")
+            }
+        }).then(()=>{
+            res.json({
+                result: true
+            })
+        }).catch((error)=> {
+            console.error(error)
+            res.status(401).json({
+                result: false
+            })
+        })
+    })
 }
 
 /** reset code 발급 */
 exports.issueResetCode = (req, res) => {
+    let t
     const {
         email
     } = req.body
@@ -228,30 +283,35 @@ exports.issueResetCode = (req, res) => {
             }, {
                 where: {
                     uid: user.uid
-                }
+                },
+                transaction: t
             })
         }
     }
 
-    const sendMail = () => {
-        User.findOne({
-            attributes: ["reset_code", "username", "email"],
+    const getUserData = () => {
+        return User.findOne({
+            transaction: t,
+            attributes: ["uid", "username", "reset_code"],
             where: {
                 email
             }
-        }).then((user) => {
-            let {
-                uid,
-                username,
-                reset_code
-            } = user
-            let reset_url = `http://localhost:3001/reset?uid=${uid}&resetCode=${reset_code}`
-            let dont_reset_url = `http://localhost:3001/reset?uid=${uid}&resetCode=${reset_code}&reset=false`
-            let mailOption = {
-                from: mailConfig.user,
-                to: email,
-                subject: 'Trello Password Reset',
-                html: `<div style="font: 15px 'Helvetica Neue',Arial,Helvetica;background-color: #F0F0F0; height: 420px; display: flex; align-items: center; justify-content: center; color: #333">
+        })
+    }
+
+    const sendMail = (user) => {
+        let {
+            uid,
+            username,
+            reset_code
+        } = user
+        let reset_url = `http://localhost:3001/reset?uid=${uid}&resetCode=${reset_code}`
+        let dont_reset_url = `http://localhost:3001/reset?uid=${uid}&resetCode=${reset_code}&reset=false`
+        let mailOption = {
+            from: mailConfig.user,
+            to: email,
+            subject: 'Trello Password Reset',
+            html: `<div style="font: 15px 'Helvetica Neue',Arial,Helvetica;background-color: #F0F0F0; height: 420px; display: flex; align-items: center; justify-content: center; color: #333">
             <div style="background-color: #fff; width: 464px; height: 320px;border-radius: 4px;display: flex; flex-direction: column">
                 <div style="height: 60px;background-color: #0079bf; display: flex; align-items: center; justify-content: center; border-top-left-radius: 4px;border-top-right-radius: 4px;"><img width="120px" src="https://trello.com/images/email-header-logo-white-v2.png" alt=""></div>
                 <div style="flex: 1 1 auto; padding: 10px 20px;display: flex; flex-direction: column; justify-content: space-around">
@@ -262,17 +322,15 @@ exports.issueResetCode = (req, res) => {
                 </div>
             </div>
             </div>`
+        }
+        smtpTransport.sendMail(mailOption, function (err, info) {
+            if (err) {
+                console.error('Send Mail error : ', error)
+                throw new Error('메일 전송에 실패했습니다.')
+            } else {
+                console.log(info)
+                return;
             }
-            smtpTransport.sendMail(mailOption, function (err, info) {
-                if (err) {
-                    console.error('Send Mail error : ', error)
-                    throw new Error('메일 전송에 실패했습니다.')
-                } else {
-                    return;
-                }
-            })
-        }).catch((error) => {
-            throw new Error("프로세스 오류 발생")
         })
     }
 
@@ -290,21 +348,25 @@ exports.issueResetCode = (req, res) => {
             message: error.message
         })
     }
-
-    User.findOne({
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return User.findOne({
+            transaction: t,
             where: {
                 email
             },
             attributes: ['uid', 'username', 'email']
         }).then(generateCode)
+        .then(getUserData)
         .then(sendMail)
-        .then(respond)
-        .catch(onError)
-
+    })
+    .then(respond)
+    .catch(onError)
 }
 
 /** 비밀번호 변경 */
 exports.updatePassword = (req, res) => {
+    let t
     const {
         password
     } = req.body
@@ -331,7 +393,8 @@ exports.updatePassword = (req, res) => {
                 }, {
                     where: {
                         username: user.username
-                    }
+                    },
+                    transaction : t
                 })
             } else {
                 throw new Error("유효하지 않은 코드입니다.")
@@ -353,13 +416,16 @@ exports.updatePassword = (req, res) => {
             message: error.message
         })
     }
-
-    User.findOne({
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return User.findOne({
             where: {
                 uid
             },
-            attributes: ["uid","username", "reset_code", "reset_code_expiredate"]
+            attributes: ["uid", "username", "reset_code", "reset_code_expiredate"],
+            transaction : t
         }).then(check)
-        .then(respond)
-        .catch(onError)
+    })    
+    .then(respond)
+    .catch(onError)
 }
