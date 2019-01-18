@@ -1,10 +1,12 @@
 const jwt = require('jsonwebtoken')
 const models = require('../../models')
-const User = require('../../models').db.user
+const User = models.db.user
 const salt = require('../../config/auth.config').salt
 const nodemailer = require('nodemailer')
 const mailConfig = require('../../config/mail.config')
 const uuidv4 = require('uuid/v4')
+const Op = models.sequelize.Op
+
 
 const smtpTransport = nodemailer.createTransport({
     service: 'gmail',
@@ -250,15 +252,16 @@ exports.verifyResetCode = (req, res) => {
             }else {
                 throw new Error("유효하지 않은 코드")
             }
-        }).then(()=>{
-            res.json({
-                result: true
-            })
-        }).catch((error)=> {
-            console.error(error)
-            res.status(401).json({
-                result: false
-            })
+        })
+    }).then(()=>{
+        res.json({
+            result: true
+        })
+    }).catch((error)=> {
+        console.error(error)
+        res.status(401).json({
+            result: false,
+            message: error.message
         })
     })
 }
@@ -311,17 +314,33 @@ exports.issueResetCode = (req, res) => {
             from: mailConfig.user,
             to: email,
             subject: 'Trello Password Reset',
-            html: `<div style="font: 15px 'Helvetica Neue',Arial,Helvetica;background-color: #F0F0F0; height: 420px; display: flex; align-items: center; justify-content: center; color: #333">
-            <div style="background-color: #fff; width: 464px; height: 320px;border-radius: 4px;display: flex; flex-direction: column">
-                <div style="height: 60px;background-color: #0079bf; display: flex; align-items: center; justify-content: center; border-top-left-radius: 4px;border-top-right-radius: 4px;"><img width="120px" src="https://trello.com/images/email-header-logo-white-v2.png" alt=""></div>
-                <div style="flex: 1 1 auto; padding: 10px 20px;display: flex; flex-direction: column; justify-content: space-around">
-                    <div style="font-weight: bold;font-size: 20px;">Hello ${username},</div>
-                    <div>We heard you need a password reset. Click the link below and you'll be redirected to a secure site from which you can set a new password.</div>
-                    <div style="display: flex; align-items: center; justify-content: center"><a href="${reset_url}" style="background-color: #3aa54c; border-radius: 3px; text-decoration: none; color: #fff; font-size: 16px; font-weight: 700; padding: 10px 50px;">Reset Password</a></div>
-                    <div style="color: #939393">If you didn't try to reset your password, <a href="${dont_reset_url}" style="color: #365FC9">click here</a> and we'll forget this ever happened.</div>
-                </div>
-            </div>
-            </div>`
+            html: `<div style="font: 15px 'Helvetica Neue',Arial,Helvetica;background-color: #F0F0F0; height: 420px; color: #333;">
+            <table style="color: #333;padding: 0;margin: 0;width: 100%;font: 15px 'Helvetica Neue',Arial,Helvetica;">
+                <tbody>
+                    <tr width="100%">
+                        <td>
+                            <table style="border: none;padding: 0px 18px;margin: 50px auto;width: 500px;">
+                                <tbody>
+                                    <tr width="100%" height="57">
+                                        <td style="background-color: #0079bf; border-top-left-radius: 4px;border-top-right-radius: 4px;text-align: center;padding: 12px 18px;"><img
+                                                width="120px" src="https://trello.com/images/email-header-logo-white-v2.png" alt=""></td>
+                                    </tr>
+                                    <tr width="100%">
+                                        <td style="background: #fff; padding: 18px; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;">
+                                            <div style="font-weight: bold;font-size: 20px;color: #333;margin: 0;">Hello ${username},</div>
+                                            <p style="font-size: 15px; color: #333;">We heard you need a password reset. Click the link below
+                                                and you'll be redirected to a secure site from which you can set a new password.</p>
+                                            <p style="text-align: center; color: #333; font-size: 15px;"><a href="${reset_url}" target="_blank" style="background-color: #3aa54c;border-radius: 3px;text-decoration: none;color: #fff;line-height: 1.25em;font-size: 16px;font-weight: 700;padding: 10px 18px;margin: 24px auto 24px;display: block;width: 180px;">Reset Password</a></p>
+                                            <p style="color: #939393">If you didn't try to reset your password, <a href="${dont_reset_url}" style="color: #365FC9">click here</a> and we'll forget this ever happened.</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>`
         }
         smtpTransport.sendMail(mailOption, function (err, info) {
             if (err) {
@@ -337,7 +356,7 @@ exports.issueResetCode = (req, res) => {
     const respond = () => {
         res.json({
             result: true,
-            message: "성공적으로 코드를 발급했습니다."
+            message: "코드를 발급했습니다. 이메일을 확인해주세요."
         })
     }
 
@@ -428,4 +447,34 @@ exports.updatePassword = (req, res) => {
     })    
     .then(respond)
     .catch(onError)
+}
+
+/** 이메일로 유저 리스트 가져오기 */
+exports.getUserList = (req, res) => {
+    let t
+    const { email } = req.params
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return User.findAll({
+            where:{
+                email: {
+                    [Op.like]: email + "%"
+                }
+            },
+            transaction: t,
+            attributes: ["uid", "email", "username", "photo"]
+        })
+    }).then(userList => {
+        res.json({
+            result: true,
+            data: userList
+        })
+    }).catch(error => {
+        console.error(error)
+        res.status(400).json({
+            result: false,
+            message : error.message
+        })
+    })
 }

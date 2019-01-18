@@ -23,4 +23,7 @@ router.post('/reset', controller.issueResetCode)
 /* 비밀번호 변경 */
 router.put('/reset', controller.updatePassword)
 
+/* 이메일로 유저 리스트 검색 */
+router.get('/email/:email', auth, controller.getUserList)
+
 module.exports = router
