@@ -19,7 +19,7 @@ router.get("/:bid/member", controller.getMemeberList)
 /* 보드 멤버 추가 */
 router.post("/:bid/member", controller.addMember)
 
-// /* 보드 멤버 삭제 */
-// router.delete("/:bid/member/:mid", controller.deleteMember)
+/* 보드 멤버 삭제 */
+router.delete("/:bid/member/:mid", controller.deleteMember)
 
 module.exports = router

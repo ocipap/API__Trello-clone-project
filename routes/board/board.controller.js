@@ -2,7 +2,6 @@ const models = require('../../models')
 const User = models.db.user
 const Board = models.db.board
 const Member = models.db.member
-const uuidv4 = require("uuid/v4")
 
 exports.getBoardList = (req, res) => {
     let t
@@ -12,14 +11,15 @@ exports.getBoardList = (req, res) => {
         if (!user) {
             throw new Error("존재하지 않는 유저입니다.")
         } else {
-            return Board.findAll({
+            return Member.findAll({
                 where: {
-                    user_id: user.uid
+                    uid: user.uid
                 },
                 order: [
                     ['created_at', "DESC"]
                 ],
-                transaction: t
+                transaction: t,
+                include: [{model: Board}]
             })
         }
     }
@@ -34,10 +34,9 @@ exports.getBoardList = (req, res) => {
         } else {
             res.json({
                 result: true,
-                board
+                data: board
             })
         }
-
     }
 
     const onError = (error) => {
@@ -94,7 +93,8 @@ exports.addBoard = (req, res) => {
         } = board.dataValues
         return Member.create({
             bid: bid,
-            uid: user_id
+            uid: user_id,
+            permission: "Admin"
         }, {
             transaction: t
         })
@@ -254,7 +254,8 @@ exports.deleteBoard = (req, res) => {
             return Member.findOne({
                 where: {
                     bid,
-                    uid: user.uid
+                    uid: user.uid,
+                    permission: "Admin"
                 },
                 transaction: t
             })
@@ -381,8 +382,155 @@ exports.addMember = (req, res) => {
     const {bid} = req.params
     const {uid} = req.body
 
+    const userCheck = (user) => {
+        if(!user) {
+            throw new Error("존재하지 않는 유저입니다.")
+        } else {
+            return Member.findOne({
+                where : {
+                    bid : bid,
+                    uid : user.uid,
+                    permission: "Admin"
+                },
+                transaction : t,
+                attributes : ["bid"]
+            })
+        }
+    }
+
+    const memberCheck = (member) => {
+        if(!member) {
+            throw new Error("유저를 추가시킬 권한이 없습니다.")
+        } else {
+            return Member.findOne({
+                where : {
+                    bid: member.bid,
+                    uid : uid
+                },
+                transaction : t,
+                attributes : ["bid"]
+            })
+        }
+    }
+
+    const isMember = (member) => {
+        if(member) {
+            throw new Error("이미 존재하는 멤버입니다.")
+        } else {
+            return Member.create({
+                bid: member.bid,
+                uid: uid,
+                permission: "Normal"
+            }, {
+                transaction : t
+            })
+        }
+    }
+
+    const respond = (result) => {
+        res.json({
+            result : true,
+            message : "멤버를 정상적으로 추가시켰습니다."
+        })
+    }
+
+    const onError = (error) => {
+        console.error(error.message)
+        res.status(400).json({
+            result: false,
+            message : error.message
+        })
+    }
+
     models.sequelize.transaction(transaction => {
         t = transaction
-        
-    })
+        return User.findOne({
+            where: {
+                uid: decoded.uid
+            },
+            attributes: ["uid", "username"],
+            transaction : t
+        }).then(userCheck)
+        .then(memberCheck)
+        .then(isMember)
+    }).then(respond)
+    .catch(onError)
+}
+
+exports.deleteMember = (req, res) => {
+    let t
+    const decoded = req.decoded
+    const {bid, uid} = req.params
+
+    const userCheck = (user) => {
+        if(!user) {
+            throw new Error("존재하지 않은 유저입니다.")
+        } else {
+            return Member.findOne({
+                where: {
+                    bid,
+                    uid: decoded.uid,
+                    permission: "ADMIN"
+                },
+                transaction: t
+            })
+        }
+    }
+
+    const memberCheck = (member) => {
+        if(!member) {
+            throw new Error("유저를 추가시킬 권한이 없습니다.")
+        } else {
+            return Member.findOne({
+                where: {
+                    bid,
+                    uid
+                },
+                transaction: t
+            })
+        }
+    }
+
+    const isMember = (member) => {
+        if(!member){
+            throw new Error("존재하지 않은 멤버입니다.")
+        } else {
+            return Member.destroy({
+                where:{
+                    bid,
+                    uid
+                },
+                transaction : t
+            })
+        }
+    }
+
+    const respond = (result) => {
+        res.json({
+            result: true,
+            message : "멤버를 정상적으로 삭제하였습니다."
+        })
+    }
+
+    const onError = (error) => {
+        console.error(error.message)
+        res.status(400).json({
+            result: false,
+            message : error.message
+        })
+    }
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return User.findOne({
+            where : {
+                uid: decoded.uid
+            },
+            attributes : ["uid", "username"],
+            transaction: t
+        }).then(userCheck)
+        .then(memberCheck)
+        .then(isMember)
+    }).then(respond)
+    .catch(onError)
 }

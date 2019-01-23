@@ -16,6 +16,11 @@ module.exports = (sequelize, DataTypes) => {
             field: "uid",
             type: DataTypes.UUID,
             allowNull: false,
+        },
+        permission: {
+            field: "permission",
+            type: DataTypes.STRING(10),
+            allowNull: false
         }
     }, {
         underscored: true,
