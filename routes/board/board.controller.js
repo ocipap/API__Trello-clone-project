@@ -2,6 +2,7 @@ const models = require('../../models')
 const User = models.db.user
 const Board = models.db.board
 const Member = models.db.member
+const ErrorHandler = require('../../middlewares/error')
 
 exports.getBoardList = (req, res) => {
     let t
@@ -9,7 +10,7 @@ exports.getBoardList = (req, res) => {
 
     const check = (user) => {
         if (!user) {
-            throw new Error("존재하지 않는 유저입니다.")
+            throw new Error("NOAUTH")
         } else {
             return Member.findAll({
                 where: {
@@ -41,10 +42,7 @@ exports.getBoardList = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(401).json({
-            result: false,
-            message: error.message
-        })
+        res.status(401).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
@@ -71,9 +69,9 @@ exports.addBoard = (req, res) => {
 
     const check = (user) => {
         if (!user) {
-            throw new Error("존재하지 않는 유저입니다.")
+            throw new Error("NOAUTH")
         } else if (title === undefined || title === null) {
-            throw new Error("제목은 필수 항목 입니다.")
+            throw new Error("BADREQ")
         } else {
             return Board.create({
                 user_id: user.uid,
@@ -109,10 +107,7 @@ exports.addBoard = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(400).json({
-            result: false,
-            message: error.message
-        })
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
@@ -143,7 +138,7 @@ exports.updateBoard = (req, res) => {
 
     const userCheck = (user) => {
         if (!user) {
-            throw new Error("존재하지 않는 유저입니다.")
+            throw new Error("NOAUTH")
         } else {
             return Member.findOne({
                 where: {
@@ -157,7 +152,7 @@ exports.updateBoard = (req, res) => {
 
     const memberCheck = (member) => {
         if (!member) {
-            throw new Error("권한이 없습니다.")
+            throw new Error("FORBIDDEN")
         } else {
             return Board.findOne({
                 where: {
@@ -171,7 +166,7 @@ exports.updateBoard = (req, res) => {
 
     const update = (board) => {
         if (!board) {
-            throw new Error("존재하지 않는 보드입니다.")
+            throw new Error("NOTFOUND")
         } else {
             if (title != undefined && bg_type != undefined) {
                 return Board.update({
@@ -218,10 +213,7 @@ exports.updateBoard = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(401).json({
-            result: false,
-            message: error.message
-        })
+        res.status(401).json(ErrorHandler(error.message))
 
     }
 
@@ -314,7 +306,7 @@ exports.getMemeberList = (req, res) => {
 
     const userCheck = (user) => {
         if (!user) {
-            throw new Erorr("존재하지 않은 유저입니다.")
+            throw new Erorr("NOAUTH")
         } else {
             return Board.findOne({
                 where: {
@@ -328,7 +320,7 @@ exports.getMemeberList = (req, res) => {
 
     const getMember = (board) => {
         if (!board) {
-            throw new Error("존재하지 않은 보드입니다.")
+            throw new Error("NOTFOUND")
         } else {
             return Member.findAll({
                 where: {
@@ -384,7 +376,7 @@ exports.addMember = (req, res) => {
 
     const userCheck = (user) => {
         if(!user) {
-            throw new Error("존재하지 않는 유저입니다.")
+            throw new Error("NOAUTH")
         } else {
             return Member.findOne({
                 where : {
@@ -400,7 +392,7 @@ exports.addMember = (req, res) => {
 
     const memberCheck = (member) => {
         if(!member) {
-            throw new Error("유저를 추가시킬 권한이 없습니다.")
+            throw new Error("FORBIDDEN")
         } else {
             return Member.findOne({
                 where : {
@@ -415,7 +407,7 @@ exports.addMember = (req, res) => {
 
     const isMember = (member) => {
         if(member) {
-            throw new Error("이미 존재하는 멤버입니다.")
+            throw new Error("EXIST")
         } else {
             return Member.create({
                 bid: member.bid,
@@ -464,7 +456,7 @@ exports.deleteMember = (req, res) => {
 
     const userCheck = (user) => {
         if(!user) {
-            throw new Error("존재하지 않은 유저입니다.")
+            throw new Error("NOAUTH")
         } else {
             return Member.findOne({
                 where: {
@@ -479,7 +471,7 @@ exports.deleteMember = (req, res) => {
 
     const memberCheck = (member) => {
         if(!member) {
-            throw new Error("유저를 추가시킬 권한이 없습니다.")
+            throw new Error("FORBIDDEN")
         } else {
             return Member.findOne({
                 where: {
@@ -493,7 +485,7 @@ exports.deleteMember = (req, res) => {
 
     const isMember = (member) => {
         if(!member){
-            throw new Error("존재하지 않은 멤버입니다.")
+            throw new Error("NOAUTH")
         } else {
             return Member.destroy({
                 where:{

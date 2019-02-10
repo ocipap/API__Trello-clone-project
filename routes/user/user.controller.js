@@ -6,6 +6,7 @@ const nodemailer = require('nodemailer')
 const mailConfig = require('../../config/mail.config')
 const uuidv4 = require('uuid/v4')
 const Op = models.sequelize.Op
+const errorHandler = require('../../middlewares/error')
 
 
 const smtpTransport = nodemailer.createTransport({
@@ -27,7 +28,7 @@ exports.join = (req, res) => {
 
     const create = (user) => {
         if (user) {
-            throw new Error('이미 존재하는 회원입니다.')
+            throw new Error('EXIST')
         } else {
             return User.create({
                 username,
@@ -49,11 +50,9 @@ exports.join = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(409).json({
-            message: error.message,
-            result: false
-        })
+        res.status(400).json(errorHandler(error.message))
     }
+
     models.sequelize.transaction(transaction => {
         t = transaction
         return User.findOne({
@@ -79,7 +78,7 @@ exports.login = (req, res) => {
 
     const check = (user) => {
         if (!user) {
-            throw new Error('로그인에 실패하셨습니다.')
+            throw new Error('NOAUTH')
         } else {
             if (user.password === password) {
                 const p = new Promise((resolve, reject) => {
@@ -97,7 +96,7 @@ exports.login = (req, res) => {
                 })
                 return p
             } else {
-                throw new Error("로그인에 실패하셨습니다.")
+                throw new Error("NOAUTH")
             }
         }
     }
@@ -112,10 +111,7 @@ exports.login = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(401).json({
-            message: error.message,
-            result: false
-        })
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
@@ -145,7 +141,7 @@ exports.getInfo = (req, res) => {
 
     const check = (user) => {
         if (!user) {
-            throw new Error("로그인이 필요합니다.")
+            throw new Error("NOAUTH")
         } else {
             return user
         }
@@ -160,10 +156,7 @@ exports.getInfo = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(401).json({
-            message: error.message,
-            result: false
-        })
+        res.status(400).json(ErrorHandler(error.message))
     }
     models.sequelize.transaction(transaction => {
         t = transaction
@@ -190,7 +183,7 @@ exports.updateInfo = (req, res) => {
 
     const check = (user) => {
         if (user.username != username) {
-            throw new Error("권한이 없습니다.");
+            throw new Error("FORBIDDEN");
         } else {
             return User.update({
                 email
@@ -212,10 +205,7 @@ exports.updateInfo = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(403).json({
-            result: false,
-            message: error.message
-        })
+        res.status(400).json(ErrorHandler(error.message))
     }
     model.sequelize.transaction(transaction => {
         t = transaction
@@ -250,7 +240,7 @@ exports.verifyResetCode = (req, res) => {
             if(user){
                 return;
             }else {
-                throw new Error("유효하지 않은 코드")
+                throw new Error("NOCODE")
             }
         })
     }).then(()=>{
@@ -259,10 +249,7 @@ exports.verifyResetCode = (req, res) => {
         })
     }).catch((error)=> {
         console.error(error)
-        res.status(401).json({
-            result: false,
-            message: error.message
-        })
+        res.status(400).json(ErrorHandler(error.message))
     })
 }
 
@@ -275,7 +262,7 @@ exports.issueResetCode = (req, res) => {
 
     const generateCode = (user) => {
         if (!user) {
-            throw new Error("일치하는 계정이 없습니다.")
+            throw new Error("NOAUTH")
         } else {
             let date = new Date()
             let reset_code = uuidv4()
@@ -345,7 +332,7 @@ exports.issueResetCode = (req, res) => {
         smtpTransport.sendMail(mailOption, function (err, info) {
             if (err) {
                 console.error('Send Mail error : ', error)
-                throw new Error('메일 전송에 실패했습니다.')
+                throw new Error('MAILFAIL')
             } else {
                 console.log(info)
                 return;
@@ -362,10 +349,7 @@ exports.issueResetCode = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(401).json({
-            result: false,
-            message: error.message
-        })
+        res.status(400).json(ErrorHandler(error.message))
     }
     models.sequelize.transaction(transaction => {
         t = transaction
@@ -402,7 +386,7 @@ exports.updatePassword = (req, res) => {
 
     const check = (user) => {
         if (!user) {
-            throw new Error("존재하지 않는 사용자입니다.")
+            throw new Error("NOAUTH")
         } else {
             if (verify(user)) {
                 return User.update({
@@ -416,7 +400,7 @@ exports.updatePassword = (req, res) => {
                     transaction : t
                 })
             } else {
-                throw new Error("유효하지 않은 코드입니다.")
+                throw new Error("NOCODE")
             }
         }
     }
@@ -430,10 +414,7 @@ exports.updatePassword = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(403).json({
-            result: false,
-            message: error.message
-        })
+        res.status(403).json(ErrorHandler(error.message))
     }
     models.sequelize.transaction(transaction => {
         t = transaction
@@ -472,9 +453,6 @@ exports.getUserList = (req, res) => {
         })
     }).catch(error => {
         console.error(error)
-        res.status(400).json({
-            result: false,
-            message : error.message
-        })
+        res.status(400).json(ErrorHandler(error.message))
     })
 }
