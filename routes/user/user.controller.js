@@ -111,7 +111,7 @@ exports.login = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(400).json(ErrorHandler(error.message))
+        res.status(400).json(errorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
