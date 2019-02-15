@@ -20,6 +20,9 @@ router.get('/reset', controller.verifyResetCode)
 /* reset code 발급 */
 router.post('/reset', controller.issueResetCode)
 
+/* reset code 삭제 */
+router.delete('/reset', controller.deleteResetCode)
+
 /* 비밀번호 변경 */
 router.put('/reset', controller.updatePassword)
 

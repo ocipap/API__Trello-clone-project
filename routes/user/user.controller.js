@@ -6,7 +6,7 @@ const nodemailer = require('nodemailer')
 const mailConfig = require('../../config/mail.config')
 const uuidv4 = require('uuid/v4')
 const Op = models.sequelize.Op
-const errorHandler = require('../../middlewares/error')
+const ErrorHandler = require('../../middlewares/error')
 
 
 const smtpTransport = nodemailer.createTransport({
@@ -35,7 +35,7 @@ exports.join = (req, res) => {
                 password,
                 email,
                 photo: username.substr(0, 1)
-            },{
+            }, {
                 transaction: t
             })
         }
@@ -50,21 +50,21 @@ exports.join = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(400).json(errorHandler(error.message))
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
-        t = transaction
-        return User.findOne({
-            transaction: t,
-            where: {
-                username
-            }
+            t = transaction
+            return User.findOne({
+                    transaction: t,
+                    where: {
+                        username
+                    }
+                })
+                .then(create)
         })
-        .then(create)
-    })
-    .then(respond)
-    .catch(onError)
+        .then(respond)
+        .catch(onError)
 }
 
 /** 로그인 */
@@ -91,7 +91,7 @@ exports.login = (req, res) => {
                             expiresIn: '1d'
                         }, (err, token) => {
                             if (err) reject(err)
-                            resolve(token)
+                            resolve({token, username: user.username})
                         })
                 })
                 return p
@@ -101,37 +101,38 @@ exports.login = (req, res) => {
         }
     }
 
-    const respond = (token) => {
+    const respond = ({token, username}) => {
         res.json({
             message: "로그인에 성공하였습니다.",
             token,
+            data: {username},
             result: true
         })
     }
 
     const onError = (error) => {
         console.error(error)
-        res.status(400).json(errorHandler(error.message))
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
-        t = transaction
-        if(email !== undefined){
-            return User.findOne({
-                where: {
-                    email
-                }
-            }).then(check)
-        }else {
-            return User.findOne({
-                where: {
-                    username
-                }
-            }).then(check)
-        }
-    })
-    .then(respond)
-    .catch(onError)
+            t = transaction
+            if (email !== undefined) {
+                return User.findOne({
+                    where: {
+                        email
+                    }
+                }).then(check)
+            } else {
+                return User.findOne({
+                    where: {
+                        username
+                    }
+                }).then(check)
+            }
+        })
+        .then(respond)
+        .catch(onError)
 }
 
 /** 회원정보 가져오기 */
@@ -159,17 +160,17 @@ exports.getInfo = (req, res) => {
         res.status(400).json(ErrorHandler(error.message))
     }
     models.sequelize.transaction(transaction => {
-        t = transaction
-        return User.findOne({
-            where: {
-                uid: decoded.uid
-            },
-            attributes: ['uid', 'username', 'email', 'photo'],
-            transaction: t
-        }).then(check)
-    })    
-    .then(respond)
-    .catch(onError)
+            t = transaction
+            return User.findOne({
+                where: {
+                    uid: decoded.uid
+                },
+                attributes: ['uid', 'username', 'email', 'photo'],
+                transaction: t
+            }).then(check)
+        })
+        .then(respond)
+        .catch(onError)
 }
 
 /** 회원 정보 업데이트 */
@@ -208,16 +209,16 @@ exports.updateInfo = (req, res) => {
         res.status(400).json(ErrorHandler(error.message))
     }
     model.sequelize.transaction(transaction => {
-        t = transaction
-        return User.findOne({
-            transaction: t,
-            where: {
-                uid: decoded.uid
-            }
-        }).then(check)
-    })
-    .then(respond)
-    .catch(onError)
+            t = transaction
+            return User.findOne({
+                transaction: t,
+                where: {
+                    uid: decoded.uid
+                }
+            }).then(check)
+        })
+        .then(respond)
+        .catch(onError)
 }
 
 /** reset code 검증 */
@@ -232,25 +233,75 @@ exports.verifyResetCode = (req, res) => {
         t = transaction
         return User.findOne({
             transaction: t,
-            where : {
+            where: {
                 uid,
-                resetCode
+                reset_code: resetCode
             }
         }).then((user) => {
-            if(user){
+            if (user) {
                 return;
-            }else {
+            } else {
                 throw new Error("NOCODE")
             }
         })
-    }).then(()=>{
+    }).then(() => {
         res.json({
             result: true
         })
-    }).catch((error)=> {
+    }).catch((error) => {
         console.error(error)
         res.status(400).json(ErrorHandler(error.message))
     })
+}
+
+/* reset code 삭제 */
+exports.deleteResetCode = (req, res) => {
+    let t
+    const {
+        uid,
+        resetCode
+    } = req.query
+
+    const deleteCode = (user) => {
+        if (user) {
+            return User.update({
+                reset_code: null,
+                reset_code_expiredate: null
+            }, {
+                where: {
+                    uid,
+                    reset_code: resetCode
+                },
+                transaction: t
+            })
+        } else {
+            throw new Error("NOCODE")
+        }
+    }
+
+    const respond = () => {
+        res.json({
+            result: true,
+            message: "성공적으로 코드를 파기했습니다."
+        })
+    }
+
+    const onError = (error) => {
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
+    }
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return User.findOne({
+            transaction: t,
+            where: {
+                uid,
+                reset_code: resetCode
+            }
+        }).then(deleteCode)
+    }).then(respond)
+    .catch(onError)
 }
 
 /** reset code 발급 */
@@ -295,8 +346,8 @@ exports.issueResetCode = (req, res) => {
             username,
             reset_code
         } = user
-        let reset_url = `http://localhost:3001/reset?uid=${uid}&resetCode=${reset_code}`
-        let dont_reset_url = `http://localhost:3001/reset?uid=${uid}&resetCode=${reset_code}&reset=false`
+        let reset_url = `http://localhost:8080/reset?uid=${uid}&resetCode=${reset_code}&reset=true`
+        let dont_reset_url = `http://localhost:8080/reset?uid=${uid}&resetCode=${reset_code}&reset=false`
         let mailOption = {
             from: mailConfig.user,
             to: email,
@@ -352,19 +403,19 @@ exports.issueResetCode = (req, res) => {
         res.status(400).json(ErrorHandler(error.message))
     }
     models.sequelize.transaction(transaction => {
-        t = transaction
-        return User.findOne({
-            transaction: t,
-            where: {
-                email
-            },
-            attributes: ['uid', 'username', 'email']
-        }).then(generateCode)
-        .then(getUserData)
-        .then(sendMail)
-    })
-    .then(respond)
-    .catch(onError)
+            t = transaction
+            return User.findOne({
+                    transaction: t,
+                    where: {
+                        email
+                    },
+                    attributes: ['uid', 'username', 'email']
+                }).then(generateCode)
+                .then(getUserData)
+                .then(sendMail)
+        })
+        .then(respond)
+        .catch(onError)
 }
 
 /** 비밀번호 변경 */
@@ -397,7 +448,7 @@ exports.updatePassword = (req, res) => {
                     where: {
                         username: user.username
                     },
-                    transaction : t
+                    transaction: t
                 })
             } else {
                 throw new Error("NOCODE")
@@ -417,28 +468,30 @@ exports.updatePassword = (req, res) => {
         res.status(403).json(ErrorHandler(error.message))
     }
     models.sequelize.transaction(transaction => {
-        t = transaction
-        return User.findOne({
-            where: {
-                uid
-            },
-            attributes: ["uid", "username", "reset_code", "reset_code_expiredate"],
-            transaction : t
-        }).then(check)
-    })    
-    .then(respond)
-    .catch(onError)
+            t = transaction
+            return User.findOne({
+                where: {
+                    uid
+                },
+                attributes: ["uid", "username", "reset_code", "reset_code_expiredate"],
+                transaction: t
+            }).then(check)
+        })
+        .then(respond)
+        .catch(onError)
 }
 
 /** 이메일로 유저 리스트 가져오기 */
 exports.getUserList = (req, res) => {
     let t
-    const { email } = req.params
+    const {
+        email
+    } = req.params
 
     models.sequelize.transaction(transaction => {
         t = transaction
         return User.findAll({
-            where:{
+            where: {
                 email: {
                     [Op.like]: email + "%"
                 }
