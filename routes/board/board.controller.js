@@ -6,25 +6,6 @@ const ErrorHandler = require('../../middlewares/error')
 
 exports.getBoardList = (req, res) => {
     let t
-    const decoded = req.decoded
-
-    const check = (user) => {
-        if (!user) {
-            throw new Error("NOAUTH")
-        } else {
-            return Member.findAll({
-                where: {
-                    uid: user.uid
-                },
-                order: [
-                    ['created_at', "DESC"]
-                ],
-                transaction: t,
-                include: [{model: Board}]
-            })
-        }
-    }
-
     const respond = (board) => {
         if (board.length == 0) {
             res.json({
@@ -47,42 +28,38 @@ exports.getBoardList = (req, res) => {
 
     models.sequelize.transaction(transaction => {
             t = transaction
-            return User.findOne({
+            return Member.findAll({
                 where: {
-                    uid: decoded.uid
+                    uid: user.uid
                 },
-                attributes: ["uid", "username"],
-                transaction: t
-            }).then(check)
+                order: [
+                    ['created_at', "DESC"]
+                ],
+                transaction: t,
+                include: [{model: Board}]
+            })
         }).then(respond)
         .catch(onError)
 }
 
+// exports.getBoard = (req, res) => {
+//     let t
+//     const {bid}  = req.params
+
+//     models.sequelize.transaction(transaction => {
+//         t = transaction
+
+//         return User.findOne
+//     })
+// }
+
 exports.addBoard = (req, res) => {
     let t
-    const decoded = req.decoded
     const {
         title,
         bg_type,
         background
     } = req.body
-
-    const check = (user) => {
-        if (!user) {
-            throw new Error("NOAUTH")
-        } else if (title === undefined || title === null) {
-            throw new Error("BADREQ")
-        } else {
-            return Board.create({
-                user_id: user.uid,
-                title,
-                bg_type,
-                background
-            }, {
-                transaction: t
-            })
-        }
-    }
 
     const addMemeber = (board) => {
         let {
@@ -112,14 +89,19 @@ exports.addBoard = (req, res) => {
 
     models.sequelize.transaction(transaction => {
             t = transaction
-            return User.findOne({
-                    where: {
-                        uid: decoded.uid
-                    },
-                    attributes: ["uid", "username"],
+            if (title === undefined || title === null) {
+                throw new Error("BADREQ")
+            } else {
+                return Board.create({
+                    user_id: user.uid,
+                    title,
+                    bg_type,
+                    background
+                }, {
                     transaction: t
-                }).then(check)
+                })
                 .then(addMemeber)
+            }
         }).then(reponde)
         .catch(onError)
 }
@@ -135,20 +117,6 @@ exports.updateBoard = (req, res) => {
         bg_type,
         background
     } = req.body
-
-    const userCheck = (user) => {
-        if (!user) {
-            throw new Error("NOAUTH")
-        } else {
-            return Member.findOne({
-                where: {
-                    bid,
-                    uid: decoded.uid
-                },
-                transaction: t
-            })
-        }
-    }
 
     const memberCheck = (member) => {
         if (!member) {
@@ -219,40 +187,24 @@ exports.updateBoard = (req, res) => {
 
     models.sequelize.transaction(transaction => {
             t = transaction
-            return User.findOne({
-                    where: {
-                        uid: decoded.uid
-                    },
-                    attributes: ["uid", "username"],
-                    transaction: t
-                }).then(userCheck)
-                .then(memberCheck)
-                .then(update)
+            return Member.findOne({
+                where: {
+                    bid,
+                    uid: decoded.uid
+                },
+                transaction: t
+            })
+            .then(memberCheck)
+            .then(update)
         }).then(reponde)
         .catch(onError)
 }
 
 exports.deleteBoard = (req, res) => {
     let t
-    const decoded = req.decoded
     const {
         bid
     } = req.params
-
-    const userCheck = (user) => {
-        if (!user) {
-            throw new Error("존재하지 않는 유저입니다.")
-        } else {
-            return Member.findOne({
-                where: {
-                    bid,
-                    uid: user.uid,
-                    permission: "Admin"
-                },
-                transaction: t
-            })
-        }
-    }
 
     const memberCheck = (member) => {
         if (!member) {
@@ -284,15 +236,16 @@ exports.deleteBoard = (req, res) => {
 
     models.sequelize.transaction(transaction => {
             t = transaction
-            return User.findOne({
-                    where: {
-                        uid: decoded.uid
-                    },
-                    attributes: ["uid", "username"],
-                    transaction: t
-                }).then(userCheck)
-                .then(memberCheck)
-                .then(deleteBoard)
+            return Member.findOne({
+                where: {
+                    bid,
+                    uid: user.uid,
+                    permission: "Admin"
+                },
+                transaction: t
+            })
+            .then(memberCheck)
+            .then(deleteBoard)
         }).then(respond)
         .catch(onError)
 }
@@ -304,19 +257,6 @@ exports.getMemeberList = (req, res) => {
         bid
     } = req.params
 
-    const userCheck = (user) => {
-        if (!user) {
-            throw new Erorr("NOAUTH")
-        } else {
-            return Board.findOne({
-                where: {
-                    bid
-                },
-                attributes: ["bid"],
-                transaction: t
-            })
-        }
-    }
 
     const getMember = (board) => {
         if (!board) {
@@ -356,21 +296,20 @@ exports.getMemeberList = (req, res) => {
 
     models.sequelize.transaction(transaction => {
             t = transaction
-            return User.findOne({
-                    where: {
-                        uid: decoded.uid
-                    },
-                    attributes: ["uid", "username"],
-                    transaction: t
-                }).then(userCheck)
-                .then(getMember)
+            return Board.findOne({
+                where: {
+                    bid
+                },
+                attributes: ["bid"],
+                transaction: t
+            })
+            .then(getMember)
         }).then(respond)
         .catch(onError)
 }
 
 exports.addMember = (req, res) => {
     let t
-    const decoded = req.decoded
     const {bid} = req.params
     const {uid} = req.body
 
@@ -378,15 +317,7 @@ exports.addMember = (req, res) => {
         if(!user) {
             throw new Error("NOAUTH")
         } else {
-            return Member.findOne({
-                where : {
-                    bid : bid,
-                    uid : user.uid,
-                    permission: "Admin"
-                },
-                transaction : t,
-                attributes : ["bid"]
-            })
+            
         }
     }
 
@@ -436,13 +367,15 @@ exports.addMember = (req, res) => {
 
     models.sequelize.transaction(transaction => {
         t = transaction
-        return User.findOne({
-            where: {
-                uid: decoded.uid
+        return Member.findOne({
+            where : {
+                bid : bid,
+                uid : user.uid,
+                permission: "Admin"
             },
-            attributes: ["uid", "username"],
-            transaction : t
-        }).then(userCheck)
+            transaction : t,
+            attributes : ["bid"]
+        })
         .then(memberCheck)
         .then(isMember)
     }).then(respond)
@@ -454,20 +387,6 @@ exports.deleteMember = (req, res) => {
     const decoded = req.decoded
     const {bid, uid} = req.params
 
-    const userCheck = (user) => {
-        if(!user) {
-            throw new Error("NOAUTH")
-        } else {
-            return Member.findOne({
-                where: {
-                    bid,
-                    uid: decoded.uid,
-                    permission: "ADMIN"
-                },
-                transaction: t
-            })
-        }
-    }
 
     const memberCheck = (member) => {
         if(!member) {
@@ -514,13 +433,14 @@ exports.deleteMember = (req, res) => {
 
     models.sequelize.transaction(transaction => {
         t = transaction
-        return User.findOne({
-            where : {
-                uid: decoded.uid
+        return Member.findOne({
+            where: {
+                bid,
+                uid: decoded.uid,
+                permission: "ADMIN"
             },
-            attributes : ["uid", "username"],
             transaction: t
-        }).then(userCheck)
+        })
         .then(memberCheck)
         .then(isMember)
     }).then(respond)

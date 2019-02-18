@@ -2,7 +2,7 @@ const router = require('express').Router()
 const controller = require('./list.controller')
 
 /* 리스트 조회 */
-router.get("/")
+router.get("/", controller.getLists)
 
 /* 리스트 추가 */
 router.post("/")

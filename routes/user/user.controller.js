@@ -140,14 +140,6 @@ exports.getInfo = (req, res) => {
     let t
     const decoded = req.decoded;
 
-    const check = (user) => {
-        if (!user) {
-            throw new Error("NOAUTH")
-        } else {
-            return user
-        }
-    }
-
     const respond = (user) => {
         res.json({
             result: true,
@@ -167,7 +159,7 @@ exports.getInfo = (req, res) => {
                 },
                 attributes: ['uid', 'username', 'email', 'photo'],
                 transaction: t
-            }).then(check)
+            })
         })
         .then(respond)
         .catch(onError)
@@ -178,24 +170,8 @@ exports.updateInfo = (req, res) => {
     let t
     const decoded = req.decoded
     const {
-        username,
         email
     } = req.body
-
-    const check = (user) => {
-        if (user.username != username) {
-            throw new Error("FORBIDDEN");
-        } else {
-            return User.update({
-                email
-            }, {
-                transaction: t,
-                where: {
-                    uid: user.uid
-                }
-            })
-        }
-    }
 
     const respond = () => {
         res.json({
@@ -210,12 +186,14 @@ exports.updateInfo = (req, res) => {
     }
     model.sequelize.transaction(transaction => {
             t = transaction
-            return User.findOne({
+            return User.update({
+                email
+            }, {
                 transaction: t,
                 where: {
-                    uid: decoded.uid
+                    uid: user.uid
                 }
-            }).then(check)
+            })
         })
         .then(respond)
         .catch(onError)

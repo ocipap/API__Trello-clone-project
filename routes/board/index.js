@@ -4,6 +4,9 @@ const controller = require('./board.controller')
 /* 보드 전체 조회 */
 router.get("/", controller.getBoardList)
 
+/* 리스트 리스트 조회 */
+//router.get('/:bid', controller.getBoard)
+
 /* 보드 추가 */
 router.post("/", controller.addBoard)
 

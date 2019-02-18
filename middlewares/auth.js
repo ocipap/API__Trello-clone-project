@@ -1,8 +1,10 @@
 const jwt = require('jsonwebtoken')
+const User = require('../models').db.user
 const { salt } = require('../config/auth.config')
 
 const authMiddleware = (req, res, next) => {
     const token = req.headers['token']
+    let decode_token = null
 
     if (!token) {
         return res.status(403).json({
@@ -28,7 +30,18 @@ const authMiddleware = (req, res, next) => {
     }
 
     p.then((decoded) => {
-        req.decoded = decoded
+        decode_token = decoded
+        return User.findOne({
+            where: {
+                uid: decoded.uid
+            },
+            attributes: ["uid", "username"]
+        })
+    }).then((user) => {
+        if(!user){
+            throw new Error("Forbidden")
+        }
+        req.decoded = decode_token
         next()
     }).catch(onError)
 }
