@@ -1,6 +1,7 @@
 const models = require('../../models')
 const User = models.db.user
 const Board = models.db.board
+const List = models.db.list
 const Member = models.db.member
 const ErrorHandler = require('../../middlewares/error')
 
@@ -42,16 +43,42 @@ exports.getBoardList = (req, res) => {
         .catch(onError)
 }
 
-// exports.getBoard = (req, res) => {
-//     let t
-//     const {bid}  = req.params
+exports.getBoard = (req, res) => {
+    let t
+    const {bid}  = req.params
 
-//     models.sequelize.transaction(transaction => {
-//         t = transaction
+    const respond = (board) => {
+        if(!board){
+            throw new Error("NOTFOUND")
+        }else {
+            res.json({
+                result: true,
+                data: board
+            })
+        }
+    }
 
-//         return User.findOne
-//     })
-// }
+    const onError = (error) => {
+        console.error(error.message)
+        res.status(400).json({
+            result: false,
+            message: error.message
+        })
+    }
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+
+        return Board.findOne({
+            where: {
+                bid
+            },
+            transaction: t,
+            include: [{model: List}]
+        })
+    }).then(respond)
+    .catch(onError)
+}
 
 exports.addBoard = (req, res) => {
     let t
@@ -75,7 +102,7 @@ exports.addBoard = (req, res) => {
         })
     }
 
-    const reponde = (result) => {
+    const respond = () => {
         res.json({
             result: true,
             message: "정상적으로 보드를 추가시켰습니다."
@@ -102,8 +129,61 @@ exports.addBoard = (req, res) => {
                 })
                 .then(addMemeber)
             }
-        }).then(reponde)
+        }).then(respond)
         .catch(onError)
+}
+
+exports.addList = (req, res) => {
+    let t
+    const decoded = req.decoded
+    const {bid} = req.params
+    const {
+        title,
+        position
+    } = req.body
+
+    const addList = (member) => {
+        if(!member){
+            throw new Error("NOAUTH")
+        } else {
+            return List.create({
+                bid,
+                title,
+                position,
+            }, {
+                transaction: t
+            })
+        }
+    }
+
+    const respond = () => {
+        res.json({
+            result: true,
+            message: "정상적으로 보드를 추가시켰습니다."
+        })
+    }
+
+    const onError = (error) => {
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
+    }
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        if (title === undefined || title === null || 
+            position === undefined || position === null) {
+            throw new Error("BADREQ")
+        } else {
+            return Member.findOne({
+                transaction: t,
+                where : {
+                    uid: decoded.uid,
+                    bid
+                }
+            }).then(addList)
+        }
+    }).then(respond)
+    .catch(onError)
 }
 
 exports.updateBoard = (req, res) => {
@@ -172,7 +252,7 @@ exports.updateBoard = (req, res) => {
         }
     }
 
-    const reponde = (result) => {
+    const respond = (result) => {
         res.json({
             result: true,
             message: "보드 수정에 성공하였습니다."
@@ -196,7 +276,7 @@ exports.updateBoard = (req, res) => {
             })
             .then(memberCheck)
             .then(update)
-        }).then(reponde)
+        }).then(respond)
         .catch(onError)
 }
 
@@ -252,7 +332,6 @@ exports.deleteBoard = (req, res) => {
 
 exports.getMemeberList = (req, res) => {
     let t
-    const decoded = req.decoded
     const {
         bid
     } = req.params

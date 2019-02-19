@@ -71,7 +71,6 @@ exports.join = (req, res) => {
 exports.login = (req, res) => {
     let t
     const {
-        username,
         email,
         password
     } = req.body
@@ -116,23 +115,15 @@ exports.login = (req, res) => {
     }
 
     models.sequelize.transaction(transaction => {
-            t = transaction
-            if (email !== undefined) {
-                return User.findOne({
-                    where: {
-                        email
-                    }
-                }).then(check)
-            } else {
-                return User.findOne({
-                    where: {
-                        username
-                    }
-                }).then(check)
+        t = transaction
+        return User.findOne({
+            where: {
+                email
             }
-        })
-        .then(respond)
-        .catch(onError)
+        }).then(check)
+    })
+    .then(respond)
+    .catch(onError)
 }
 
 /** 회원정보 가져오기 */
@@ -168,7 +159,6 @@ exports.getInfo = (req, res) => {
 /** 회원 정보 업데이트 */
 exports.updateInfo = (req, res) => {
     let t
-    const decoded = req.decoded
     const {
         email
     } = req.body
