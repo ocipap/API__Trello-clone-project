@@ -6,8 +6,7 @@ const nodemailer = require('nodemailer')
 const mailConfig = require('../../config/mail.config')
 const uuidv4 = require('uuid/v4')
 const Op = models.sequelize.Op
-const ErrorHandler = require('../../middlewares/error')
-
+const ErrorHandler = require('../../middlewares/error').ErrorHandler
 
 const smtpTransport = nodemailer.createTransport({
     service: 'gmail',
@@ -18,7 +17,7 @@ const smtpTransport = nodemailer.createTransport({
 })
 
 /** 회원가입 */
-exports.join = (req, res) => {
+const join = (req, res) => {
     let t
     const {
         username,
@@ -54,21 +53,21 @@ exports.join = (req, res) => {
     }
 
     models.sequelize.transaction(transaction => {
-            t = transaction
-            return User.findOne({
-                    transaction: t,
-                    where: {
-                        username
-                    }
-                })
-                .then(create)
-        })
-        .then(respond)
-        .catch(onError)
+        t = transaction
+        return User.findOne({
+                transaction: t,
+                where: {
+                    email
+                }
+            })
+            .then(create)
+    })
+    .then(respond)
+    .catch(onError)
 }
 
 /** 로그인 */
-exports.login = (req, res) => {
+const login = (req, res) => {
     let t
     const {
         email,
@@ -127,7 +126,7 @@ exports.login = (req, res) => {
 }
 
 /** 회원정보 가져오기 */
-exports.getInfo = (req, res) => {
+const getInfo = (req, res) => {
     let t
     const decoded = req.decoded;
 
@@ -142,22 +141,22 @@ exports.getInfo = (req, res) => {
         console.error(error)
         res.status(400).json(ErrorHandler(error.message))
     }
+
     models.sequelize.transaction(transaction => {
-            t = transaction
-            return User.findOne({
-                where: {
-                    uid: decoded.uid
-                },
-                attributes: ['uid', 'username', 'email', 'photo'],
-                transaction: t
-            })
+        t = transaction
+        return User.findOne({
+            where: {
+                uid: decoded.uid
+            },
+            attributes: ['uid', 'username', 'email', 'photo'],
+            transaction: t
         })
-        .then(respond)
-        .catch(onError)
+    }).then(respond)
+    .catch(onError)
 }
 
 /** 회원 정보 업데이트 */
-exports.updateInfo = (req, res) => {
+const updateInfo = (req, res) => {
     let t
     const {
         email
@@ -174,28 +173,33 @@ exports.updateInfo = (req, res) => {
         console.error(error)
         res.status(400).json(ErrorHandler(error.message))
     }
+
     model.sequelize.transaction(transaction => {
-            t = transaction
-            return User.update({
-                email
-            }, {
-                transaction: t,
-                where: {
-                    uid: user.uid
-                }
-            })
+        t = transaction
+        return User.update({
+            email
+        }, {
+            transaction: t,
+            where: {
+                uid: user.uid
+            }
         })
-        .then(respond)
-        .catch(onError)
+    }).then(respond)
+    .catch(onError)
 }
 
 /** reset code 검증 */
-exports.verifyResetCode = (req, res) => {
+const verifyResetCode = (req, res) => {
     let t
     const {
         uid,
         resetCode
     } = req.query
+
+    const onError = (error) => {
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
+    }
 
     models.sequelize.transaction(transaction => {
         t = transaction
@@ -216,14 +220,11 @@ exports.verifyResetCode = (req, res) => {
         res.json({
             result: true
         })
-    }).catch((error) => {
-        console.error(error)
-        res.status(400).json(ErrorHandler(error.message))
-    })
+    }).catch(onError)
 }
 
 /* reset code 삭제 */
-exports.deleteResetCode = (req, res) => {
+const deleteResetCode = (req, res) => {
     let t
     const {
         uid,
@@ -273,7 +274,7 @@ exports.deleteResetCode = (req, res) => {
 }
 
 /** reset code 발급 */
-exports.issueResetCode = (req, res) => {
+const issueResetCode = (req, res) => {
     let t
     const {
         email
@@ -370,24 +371,25 @@ exports.issueResetCode = (req, res) => {
         console.error(error)
         res.status(400).json(ErrorHandler(error.message))
     }
+
     models.sequelize.transaction(transaction => {
-            t = transaction
-            return User.findOne({
-                    transaction: t,
-                    where: {
-                        email
-                    },
-                    attributes: ['uid', 'username', 'email']
-                }).then(generateCode)
-                .then(getUserData)
-                .then(sendMail)
-        })
-        .then(respond)
-        .catch(onError)
+        t = transaction
+        return User.findOne({
+                transaction: t,
+                where: {
+                    email
+                },
+                attributes: ['uid', 'username', 'email']
+            }).then(generateCode)
+            .then(getUserData)
+            .then(sendMail)
+    })
+    .then(respond)
+    .catch(onError)
 }
 
 /** 비밀번호 변경 */
-exports.updatePassword = (req, res) => {
+const updatePassword = (req, res) => {
     let t
     const {
         password
@@ -433,28 +435,41 @@ exports.updatePassword = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(403).json(ErrorHandler(error.message))
+        res.status(400).json(ErrorHandler(error.message))
     }
+
     models.sequelize.transaction(transaction => {
-            t = transaction
-            return User.findOne({
-                where: {
-                    uid
-                },
-                attributes: ["uid", "username", "reset_code", "reset_code_expiredate"],
-                transaction: t
-            }).then(check)
-        })
-        .then(respond)
-        .catch(onError)
+        t = transaction
+        return User.findOne({
+            where: {
+                uid
+            },
+            attributes: ["uid", "username", "reset_code", "reset_code_expiredate"],
+            transaction: t
+        }).then(check)
+    })
+    .then(respond)
+    .catch(onError)
 }
 
 /** 이메일로 유저 리스트 가져오기 */
-exports.getUserList = (req, res) => {
+const getUserList = (req, res) => {
     let t
     const {
         email
     } = req.params
+
+    const respond = (user) => {
+        res.json({
+            result: true,
+            data: user
+        })
+    }
+
+    const onError = (error) => {
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
+    }
 
     models.sequelize.transaction(transaction => {
         t = transaction
@@ -467,13 +482,19 @@ exports.getUserList = (req, res) => {
             transaction: t,
             attributes: ["uid", "email", "username", "photo"]
         })
-    }).then(userList => {
-        res.json({
-            result: true,
-            data: userList
-        })
-    }).catch(error => {
-        console.error(error)
-        res.status(400).json(ErrorHandler(error.message))
-    })
+    }).then(respond)
+    .catch(onError)
 }
+
+module.exports = {
+    join,
+    login,
+    getInfo,
+    updateInfo,
+    verifyResetCode,
+    issueResetCode,
+    deleteResetCode,
+    updatePassword,
+    getUserList
+}
+

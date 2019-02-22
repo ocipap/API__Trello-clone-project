@@ -32,6 +32,10 @@ module.exports = (sequelize, DataTypes) => {
         db.member.belongsTo(db.user, {
             foreignKey: 'uid'
         })
+
+        db.member.belongsTo(db.board, {
+            foreignKey: 'bid'
+        })
     }
 
     return member;

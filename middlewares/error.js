@@ -26,4 +26,6 @@ const ErrorHandler = (error) => {
     return retObj
 }
 
-module.exports = ErrorHandler
+module.exports = {
+    ErrorHandler
+}

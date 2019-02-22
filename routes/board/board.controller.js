@@ -3,17 +3,16 @@ const User = models.db.user
 const Board = models.db.board
 const List = models.db.list
 const Member = models.db.member
-const ErrorHandler = require('../../middlewares/error')
+const Activity = models.db.activity
+const ErrorHandler = require('../../middlewares/error').ErrorHandler
 
-exports.getBoardList = (req, res) => {
+const getBoardList = (req, res) => {
     let t
+    const decoded = req.decoded
+
     const respond = (board) => {
         if (board.length == 0) {
-            res.json({
-                result: true,
-                message: "No Content"
-            }).status(204)
-            return;
+            res.status(204).send()
         } else {
             res.json({
                 result: true,
@@ -24,64 +23,248 @@ exports.getBoardList = (req, res) => {
 
     const onError = (error) => {
         console.error(error)
-        res.status(401).json(ErrorHandler(error.message))
-    }
-
-    models.sequelize.transaction(transaction => {
-            t = transaction
-            return Member.findAll({
-                where: {
-                    uid: user.uid
-                },
-                order: [
-                    ['created_at', "DESC"]
-                ],
-                transaction: t,
-                include: [{model: Board}]
-            })
-        }).then(respond)
-        .catch(onError)
-}
-
-exports.getBoard = (req, res) => {
-    let t
-    const {bid}  = req.params
-
-    const respond = (board) => {
-        if(!board){
-            throw new Error("NOTFOUND")
-        }else {
-            res.json({
-                result: true,
-                data: board
-            })
-        }
-    }
-
-    const onError = (error) => {
-        console.error(error.message)
-        res.status(400).json({
-            result: false,
-            message: error.message
-        })
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
         t = transaction
-
-        return Board.findOne({
+        return Member.findAll({
             where: {
-                bid
+                uid: decoded.uid
             },
+            order: [
+                ['created_at', "DESC"]
+            ],
+            attributes: [],
             transaction: t,
-            include: [{model: List}]
+            include: [{model: Board}]
         })
     }).then(respond)
     .catch(onError)
 }
 
-exports.addBoard = (req, res) => {
+const getBoard = (req, res) => {
     let t
+    const decoded = req.decoded
+    const {bid}  = req.params
+
+    const boardCheck = new Promise((resolve, reject) => {
+        Board.findOne({
+            where: {
+                bid
+            },
+            transaction: t,
+            attributes: [],
+            include: [{
+                model: List,
+                order: [
+                    ['position']
+                ],
+            }]
+        }).then(board => {
+            resolve(board)
+        })
+    })
+
+    const memberCheck = new Promise((resolve, reject) => {
+        Member.findOne({
+            where: {
+                uid: decoded.uid,
+                bid
+            },
+            transaction: t
+        }).then(member => {
+            resolve(member)
+        })
+    })
+
+    const respond = (board) => {
+        if(board == null) {
+            res.status(204).send()
+        } else {
+            res.json({
+                result: true,
+                data: board
+            })
+        }
+        
+    }
+
+    const onError = (error) => {
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
+    }
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return Promise.all([boardCheck, memberCheck]).then(data => {
+            const [board, member] = data
+            if(!board) {
+                throw new Error("NOTFOUND")
+            } else if(!member) {
+                throw new Error("FORBIDDEN")
+            } else if(board.lists.length == 0) {
+                return null
+            } else {
+                return board.lists
+            }
+        })
+    }).then(respond)
+    .catch(onError)
+}
+
+const getBoardActivity = (req, res) => {
+    let t
+    const decoded = req.decoded
+    const {bid} = req.params
+
+    const boardCheck = new Promise((resolve, reject) => {
+        Board.findOne({
+            where: {
+                bid
+            },
+            transaction: t,
+            attributes: [],
+            include: [{
+                model: Activity,
+                include: [{
+                    model: User,
+                    attributes: ['username', 'photo', 'email']
+                }]
+            }]
+        }).then(board => {
+            resolve(board)
+        })
+    })
+
+    const memberCheck = new Promise((resolve, reject) => {
+        Member.findOne({
+            where: {
+                uid: decoded.uid,
+                bid
+            },
+            transaction: t
+        }).then(member => {
+            resolve(member)
+        })
+    })
+
+    const respond = (board) => {
+        if(!board) {
+            res.json({
+                result: true,
+                message: 'No Content'
+            })
+        } else {
+            res.json({
+                result: true,
+                data: board
+            })
+        }
+        
+    }
+
+    const onError = (error) => {
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
+    }
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return Promise.all([boardCheck, memberCheck]).then(data => {
+            const [board, member] = data
+            if(!board) {
+                throw new Error("NOTFOUND")
+            } else if(!member) {
+                throw new Error("FORBIDDEN")
+            } else if (board.activities.length == 0){
+                return null
+            }else {
+                return board
+            }
+        })
+    }).then(respond)
+    .catch(onError)
+}
+
+const getBoardActivityByUser = (req, res) => {
+    let t
+    const decoded = req.decoded
+    const {bid, uid} = req.params
+
+    const boardCheck = new Promise((resolve, reject) => {
+        Board.findOne({
+            where: {
+                bid
+            },
+            transaction: t,
+            attributes: [],
+            include: [{
+                model: Activity,
+                where: {uid},
+                include: [{
+                    model: User,
+                    attributes: ['username', 'photo', 'email']
+                }]
+            }]
+        }).then(board => {
+            resolve(board)
+        })
+    })
+
+    const memberCheck = new Promise((resolve, reject) => {
+        Member.findOne({
+            where: {
+                uid: decoded.uid,
+                bid
+            },
+            transaction: t
+        }).then(member => {
+            resolve(member)
+        })
+    })
+
+    const respond = (board) => {
+        if(!board) {
+            res.json({
+                result: true,
+                message: 'No Content'
+            })
+        } else {
+            res.json({
+                result: true,
+                data: board
+            })
+        }
+        
+    }
+
+    const onError = (error) => {
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
+    }
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return Promise.all([boardCheck, memberCheck]).then(data => {
+            const [board, member] = data
+            if(!board) {
+                throw new Error("NOTFOUND")
+            } else if(!member) {
+                throw new Error("FORBIDDEN")
+            } else if (board.activities.length == 0){
+                return null
+            }else {
+                return board
+            }
+        })
+    }).then(respond)
+    .catch(onError)
+}
+
+const addBoard = (req, res) => {
+    let t
+    const decoded = req.decoded
     const {
         title,
         bg_type,
@@ -102,10 +285,18 @@ exports.addBoard = (req, res) => {
         })
     }
 
-    const respond = () => {
+    const respond = (member) => {
+        const {bid, uid} = member.dataValues
         res.json({
             result: true,
-            message: "정상적으로 보드를 추가시켰습니다."
+            message: "정상적으로 보드를 추가시켰습니다.",
+            data: {
+                bid,
+                uid,
+                title,
+                bg_type,
+                background
+            }
         })
     }
 
@@ -120,7 +311,7 @@ exports.addBoard = (req, res) => {
                 throw new Error("BADREQ")
             } else {
                 return Board.create({
-                    user_id: user.uid,
+                    user_id: decoded.uid,
                     title,
                     bg_type,
                     background
@@ -133,60 +324,8 @@ exports.addBoard = (req, res) => {
         .catch(onError)
 }
 
-exports.addList = (req, res) => {
-    let t
-    const decoded = req.decoded
-    const {bid} = req.params
-    const {
-        title,
-        position
-    } = req.body
 
-    const addList = (member) => {
-        if(!member){
-            throw new Error("NOAUTH")
-        } else {
-            return List.create({
-                bid,
-                title,
-                position,
-            }, {
-                transaction: t
-            })
-        }
-    }
-
-    const respond = () => {
-        res.json({
-            result: true,
-            message: "정상적으로 보드를 추가시켰습니다."
-        })
-    }
-
-    const onError = (error) => {
-        console.error(error)
-        res.status(400).json(ErrorHandler(error.message))
-    }
-
-    models.sequelize.transaction(transaction => {
-        t = transaction
-        if (title === undefined || title === null || 
-            position === undefined || position === null) {
-            throw new Error("BADREQ")
-        } else {
-            return Member.findOne({
-                transaction: t,
-                where : {
-                    uid: decoded.uid,
-                    bid
-                }
-            }).then(addList)
-        }
-    }).then(respond)
-    .catch(onError)
-}
-
-exports.updateBoard = (req, res) => {
+const updateBoard = (req, res) => {
     let t
     const decoded = req.decoded
     const {
@@ -198,23 +337,23 @@ exports.updateBoard = (req, res) => {
         background
     } = req.body
 
-    const memberCheck = (member) => {
-        if (!member) {
-            throw new Error("FORBIDDEN")
-        } else {
-            return Board.findOne({
+    const boardCheck = (board) => {
+        if(!board) {
+            throw new Error("NOTFOUND")
+        }else {
+            return Member.findOne({
                 where: {
-                    bid
+                    bid,
+                    uid: decoded.uid
                 },
-                attributes: ["bid"],
                 transaction: t
             })
         }
     }
 
-    const update = (board) => {
-        if (!board) {
-            throw new Error("NOTFOUND")
+    const update = (member) => {
+        if (!member) {
+            throw new Error("FORBIDDEN")
         } else {
             if (title != undefined && bg_type != undefined) {
                 return Board.update({
@@ -252,39 +391,45 @@ exports.updateBoard = (req, res) => {
         }
     }
 
-    const respond = (result) => {
+    const respond = () => {
         res.json({
             result: true,
-            message: "보드 수정에 성공하였습니다."
+            message: "정상적으로 보드를 수정하였습니다."
         })
     }
 
     const onError = (error) => {
         console.error(error)
-        res.status(401).json(ErrorHandler(error.message))
-
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
             t = transaction
-            return Member.findOne({
+            return Board.findOne({
                 where: {
-                    bid,
-                    uid: decoded.uid
+                    bid
                 },
                 transaction: t
             })
-            .then(memberCheck)
+            .then(boardCheck)
             .then(update)
         }).then(respond)
         .catch(onError)
 }
 
-exports.deleteBoard = (req, res) => {
+const deleteBoard = (req, res) => {
     let t
     const {
         bid
     } = req.params
+
+    const boardCheck = (board) => {
+        if(!board) {
+            throw new Error("NOTFOUND")
+        }else {
+
+        }
+    }
 
     const memberCheck = (member) => {
         if (!member) {
@@ -299,38 +444,33 @@ exports.deleteBoard = (req, res) => {
         }
     }
 
-    const respond = (result) => {
+    const respond = () => {
         res.json({
             result: true,
-            message: "보드 삭제에 성공하였습니다."
+            message: "정상적으로 보드를 삭제하였습니다."
         })
     }
 
     const onError = (error) => {
-        console.error(error.message)
-        res.status(400).json({
-            result: false,
-            message: error.message
-        })
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
             t = transaction
-            return Member.findOne({
+            return Board.findOne({
                 where: {
                     bid,
-                    uid: user.uid,
-                    permission: "Admin"
                 },
                 transaction: t
             })
+            .then(boardCheck)
             .then(memberCheck)
-            .then(deleteBoard)
         }).then(respond)
         .catch(onError)
 }
 
-exports.getMemeberList = (req, res) => {
+const getMemeberList = (req, res) => {
     let t
     const {
         bid
@@ -353,10 +493,7 @@ exports.getMemeberList = (req, res) => {
 
     const respond = (member) => {
         if (member.length == 0) {
-            res.json({
-                result: true,
-                message: "No Content"
-            }).status(204)
+            res.status(204).send()
         } else{
             res.json({
                 result : true,
@@ -366,11 +503,8 @@ exports.getMemeberList = (req, res) => {
     }
 
     const onError = (error) => {
-        console.error(error.message)
-        res.status(400).json({
-            result: false,
-            message: error.message
-        })
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
@@ -387,19 +521,26 @@ exports.getMemeberList = (req, res) => {
         .catch(onError)
 }
 
-exports.addMember = (req, res) => {
+const addMember = (req, res) => {
     let t
     const {bid} = req.params
     const {uid} = req.body
 
-    const userCheck = (user) => {
-        if(!user) {
-            throw new Error("NOAUTH")
-        } else {
-            
+    const boardCheck = (board) => {
+        if(!board) {
+            throw new Error("NOTFOUND")
+        }else {
+            return Member.findOne({
+                where : {
+                    bid : bid,
+                    uid : user.uid,
+                    permission: "Admin"
+                },
+                transaction : t,
+                attributes : ["bid"]
+            })
         }
     }
-
     const memberCheck = (member) => {
         if(!member) {
             throw new Error("FORBIDDEN")
@@ -429,7 +570,7 @@ exports.addMember = (req, res) => {
         }
     }
 
-    const respond = (result) => {
+    const respond = () => {
         res.json({
             result : true,
             message : "멤버를 정상적으로 추가시켰습니다."
@@ -437,35 +578,133 @@ exports.addMember = (req, res) => {
     }
 
     const onError = (error) => {
-        console.error(error.message)
-        res.status(400).json({
-            result: false,
-            message : error.message
-        })
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
         t = transaction
-        return Member.findOne({
+        return Board.findOne({
             where : {
-                bid : bid,
-                uid : user.uid,
-                permission: "Admin"
+                bid,
             },
             transaction : t,
             attributes : ["bid"]
         })
+        .then(boardCheck)
         .then(memberCheck)
         .then(isMember)
     }).then(respond)
     .catch(onError)
 }
 
-exports.deleteMember = (req, res) => {
+const updateMember = (req, res) => {
+    let t
+    const decoded = req.decoded
+    const {bid, uid} = req.params
+    const { permission } = req.body
+
+    const boardCheck = (board) => {
+        if(!board) {
+            throw new Error("NOTFOUND")
+        } else {
+            return Member.findOne({
+                where: {
+                    bid,
+                    uid: decoded.uid,
+                    permission: "ADMIN"
+                },
+                transaction: t
+            })
+        }
+    }
+
+    const memberCheck = (member) => {
+        if(!member) {
+            throw new Error("FORBIDDEN")
+        } else {
+            return Member.findOne({
+                where: {
+                    bid,
+                    uid
+                },
+                transaction: t
+            })
+        }
+    }
+
+    const isMember = (member) => {
+        if(!member){
+            throw new Error("NOAUTH")
+        } else {
+            return Member.update({
+                permission
+            },{
+                where:{
+                    bid,
+                    uid
+                },
+                transaction : t
+            })
+        }
+    }
+
+    const respond = () => {
+        res.json({
+            result: true,
+            message : "멤버를 정상적으로 수정하였습니다."
+        })
+    }
+
+    const onError = (error) => {
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
+    }
+
+    models.sequelize.transaction(transaction => {
+        t = transaction
+        return Board.findOne({
+            where: {
+                bid,
+            },
+            transaction: t
+        })
+        .then(boardCheck)
+        .then(memberCheck)
+        .then(isMember)
+    }).then(respond)
+    .catch(onError)
+}
+
+const deleteMember = (req, res) => {
     let t
     const decoded = req.decoded
     const {bid, uid} = req.params
 
+    const boardCheck = (board) => {
+        if(!board) {
+            throw new Error("NOTFOUND")
+        } else {
+            if(decoded.uid == uid) {
+                return Member.findOne({
+                    where: {
+                        bid,
+                        uid: decoded.uid,
+                    },
+                    transaction: t
+                })
+            } else {
+                return Member.findOne({
+                    where: {
+                        bid,
+                        uid: decoded.uid,
+                        permission: "ADMIN"
+                    },
+                    transaction: t
+                })
+            }
+        }
+    }
 
     const memberCheck = (member) => {
         if(!member) {
@@ -495,7 +734,7 @@ exports.deleteMember = (req, res) => {
         }
     }
 
-    const respond = (result) => {
+    const respond = () => {
         res.json({
             result: true,
             message : "멤버를 정상적으로 삭제하였습니다."
@@ -503,25 +742,35 @@ exports.deleteMember = (req, res) => {
     }
 
     const onError = (error) => {
-        console.error(error.message)
-        res.status(400).json({
-            result: false,
-            message : error.message
-        })
+        console.error(error)
+        res.status(400).json(ErrorHandler(error.message))
     }
 
     models.sequelize.transaction(transaction => {
         t = transaction
-        return Member.findOne({
+        return Board.findOne({
             where: {
                 bid,
-                uid: decoded.uid,
-                permission: "ADMIN"
             },
             transaction: t
         })
+        .then(boardCheck)
         .then(memberCheck)
         .then(isMember)
     }).then(respond)
     .catch(onError)
+}
+
+module.exports = {
+    getBoardList,
+    getBoard,
+    getBoardActivity,
+    getBoardActivityByUser,
+    addBoard,
+    updateBoard,
+    deleteBoard,
+    getMemeberList,
+    addMember,
+    updateMember,
+    deleteMember
 }
