@@ -32,6 +32,10 @@ module.exports = (sequelize, DataTypes) => {
         db.list.hasMany(db.card, {
             foreignKey: 'lid'
         })
+        
+        db.list.belongsTo(db.board, {
+            foreignKey: 'bid'
+        })
     }
 
     return list

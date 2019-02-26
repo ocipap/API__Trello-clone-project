@@ -5,6 +5,7 @@ const List = models.db.list
 const Member = models.db.member
 const Activity = models.db.activity
 const ErrorHandler = require('../../middlewares/error').ErrorHandler
+const addActivity = require('../../middlewares/activity')
 
 const getBoardList = (req, res) => {
     let t
@@ -127,6 +128,9 @@ const getBoardActivity = (req, res) => {
             attributes: [],
             include: [{
                 model: Activity,
+                order: [
+                    ['created_at', "DESC"]
+                ],
                 include: [{
                     model: User,
                     attributes: ['username', 'photo', 'email']
@@ -387,7 +391,6 @@ const updateBoard = (req, res) => {
                     transaction: t
                 })
             }
-
         }
     }
 
@@ -396,6 +399,21 @@ const updateBoard = (req, res) => {
             result: true,
             message: "정상적으로 보드를 수정하였습니다."
         })
+        if(title != undefined) {
+            return {
+                type: "edit",
+                bid,
+                uid: decoded.uid,
+                message: `<span class="username">${decoded.username}</span> renamed this board`
+            }
+        } else {
+            return {
+                type: "edit",
+                bid,
+                uid: decoded.uid,
+                message: `<span class="username">${decoded.username}</span> changed the background of this board`
+            }
+        }
     }
 
     const onError = (error) => {
@@ -414,6 +432,7 @@ const updateBoard = (req, res) => {
             .then(boardCheck)
             .then(update)
         }).then(respond)
+        .then(addActivity)
         .catch(onError)
 }
 
@@ -523,6 +542,7 @@ const getMemeberList = (req, res) => {
 
 const addMember = (req, res) => {
     let t
+    const decoded = req.decoded
     const {bid} = req.params
     const {uid} = req.body
 
@@ -533,7 +553,7 @@ const addMember = (req, res) => {
             return Member.findOne({
                 where : {
                     bid : bid,
-                    uid : user.uid,
+                    uid : decoded.uid,
                     permission: "Admin"
                 },
                 transaction : t,
@@ -561,8 +581,8 @@ const addMember = (req, res) => {
             throw new Error("EXIST")
         } else {
             return Member.create({
-                bid: member.bid,
-                uid: uid,
+                bid,
+                uid,
                 permission: "Normal"
             }, {
                 transaction : t
@@ -570,11 +590,27 @@ const addMember = (req, res) => {
         }
     }
 
-    const respond = () => {
+    const getUsername = () => {
+        return User.findOne({
+            where: {
+                uid
+            },
+            transaction: t,
+            attributes: ['username']
+        })
+    }
+
+    const respond = (user) => {
         res.json({
             result : true,
             message : "멤버를 정상적으로 추가시켰습니다."
         })
+        return {
+            type: "add",
+            bid,
+            uid: decoded.uid,
+            message: `<span class="username">${decoded.username}</span> added <span class="username">${user.username}</span> to this board`
+        }
     }
 
     const onError = (error) => {
@@ -594,7 +630,9 @@ const addMember = (req, res) => {
         .then(boardCheck)
         .then(memberCheck)
         .then(isMember)
+        .then(getUsername)
     }).then(respond)
+    .then(addActivity)
     .catch(onError)
 }
 
@@ -603,6 +641,7 @@ const updateMember = (req, res) => {
     const decoded = req.decoded
     const {bid, uid} = req.params
     const { permission } = req.body
+    let username = ""
 
     const boardCheck = (board) => {
         if(!board) {
@@ -628,6 +667,10 @@ const updateMember = (req, res) => {
                     bid,
                     uid
                 },
+                include: [{
+                    model: User,
+                    attributes: ['username']
+                }],
                 transaction: t
             })
         }
@@ -637,6 +680,7 @@ const updateMember = (req, res) => {
         if(!member){
             throw new Error("NOAUTH")
         } else {
+            username = member.user.username
             return Member.update({
                 permission
             },{
@@ -654,6 +698,12 @@ const updateMember = (req, res) => {
             result: true,
             message : "멤버를 정상적으로 수정하였습니다."
         })
+        return {
+            type: "edit",
+            bid,
+            uid: decoded.uid,
+            message: `<span class="username">${decoded.username}</span> made <span class="username">${username}</span> a ${permission} on this board`
+        }
     }
 
     const onError = (error) => {
@@ -673,6 +723,7 @@ const updateMember = (req, res) => {
         .then(memberCheck)
         .then(isMember)
     }).then(respond)
+    .then(addActivity)
     .catch(onError)
 }
 

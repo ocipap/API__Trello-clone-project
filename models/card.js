@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
         description: {
             field: "description",
             type: DataTypes.STRING(500),
-            allowNull: false
+            allowNull: true
         },
         position: {
             field: "position",
@@ -41,6 +41,10 @@ module.exports = (sequelize, DataTypes) => {
 
         db.card.hasMany(db.comment, {
             foreignKey: 'cid'
+        })
+
+        db.card.belongsTo(db.list, {
+            foreignKey: 'lid',
         })
     }
 

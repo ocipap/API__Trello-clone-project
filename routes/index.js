@@ -11,8 +11,8 @@ const activity = require('./activity')
 router.use("/user", user)
 router.use("/board", auth, board)
 router.use("/list", auth, list)
-// router.use("/card", auth, card)
-// router.use("/comment", auth, comment)
+router.use("/card", auth, card)
+router.use("/comment", auth, comment)
 // router.use("/activity", auth, activity)
 
 module.exports = router

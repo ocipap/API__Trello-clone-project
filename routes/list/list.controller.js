@@ -1,11 +1,11 @@
 const models = require('../../models')
-const User = models.db.user
 const Board = models.db.board
 const List = models.db.list
 const Member = models.db.member
 const ErrorHandler = require('../../middlewares/error').ErrorHandler
+const addActivity = require('../../middlewares/activity')
 
-const getListList = (req, res) => {
+const getCardList = (req, res) => {
 	let t
     const {lid} = req.params
 
@@ -131,6 +131,12 @@ const addList = (req, res) => {
 				position
 			}
 		})
+		return {
+			type: "add",
+			bid,
+			uid: decoded.uid,
+			message: `<span class="username">${decoded.username}</span> added ${title} to this board`
+		}
 	}
 
 	const onError = (error) => {
@@ -153,6 +159,7 @@ const addList = (req, res) => {
 			.then(memberCheck)
 		}
 	}).then(respond)
+	.then(addActivity)
 	.catch(onError)
 }
 
@@ -345,7 +352,7 @@ const moveList = (req, res) => {
 }
 
 module.exports = {
-	getListList,
+	getCardList,
 	addList,
 	updateList,
 	deleteList,

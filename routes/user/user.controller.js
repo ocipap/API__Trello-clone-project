@@ -85,9 +85,7 @@ const login = (req, res) => {
                             username: user.username,
                             email: user.email
                         },
-                        salt, {
-                            expiresIn: '1d'
-                        }, (err, token) => {
+                        salt, {}, (err, token) => {
                             if (err) reject(err)
                             resolve({token, username: user.username})
                         })

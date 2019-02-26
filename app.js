@@ -25,7 +25,7 @@ app.use(express.static('public'))
 app.use(routes)
 
 app.use((req, res, next) => {
-    res.status = 404
+    res.statusCode = 404
     next(Error('not found'))
 })
 
@@ -33,6 +33,7 @@ app.use((err, req, res, next) => {
     console.log(err)
     res.status(res.statusCode || 500)
     res.json({
+        result: false,
         error: err.message || 'internal server error'
     })
 })
