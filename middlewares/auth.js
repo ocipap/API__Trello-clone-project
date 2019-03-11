@@ -39,7 +39,7 @@ const authMiddleware = (req, res, next) => {
         })
     }).then((user) => {
         if(!user){
-            throw new Error("Forbidden")
+            throw new Error("Unauthorized")
         }
         req.decoded = decode_token
         next()
